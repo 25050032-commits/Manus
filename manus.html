@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Manus - Aprende LSM</title>
+<style>
+  body { 
+    font-family: 'Comic Sans MS', sans-serif; 
+    padding: 20px; 
+    background: #cce7ff;
+    color: #000;
+  }
+  h1 { text-align: center; color: #004080; }
+  button { 
+    padding: 10px 15px; 
+    margin: 5px; 
+    cursor: pointer; 
+    border: none;
+    border-radius: 8px;
+    background: #66b3ff;
+    color: #fff;
+    font-weight: bold;
+    transition: all 0.2s ease;
+  }
+  button:hover { 
+    background: #3399ff; 
+    transform: scale(1.05);
+  }
+  .letter-box { 
+    display: inline-block; 
+    width: 80px; 
+    text-align: center; 
+    margin: 10px; 
+    vertical-align: top;
+  }
+  .letter-box img { 
+    max-width: 70px; 
+    max-height: 70px; 
+    display: block; 
+    margin: 0 auto; 
+    border-radius: 5px;
+  }
+  .quiz-options button { 
+    display: block; 
+    margin: 5px auto; 
+    width: 150px; 
+  }
+  .feedback { 
+    margin-top: 10px; 
+    font-weight: bold; 
+    font-size: 1.2em;
+    color: #004080;
+    min-height: 25px;
+  }
+  .progress-container {
+    margin-top: 15px;
+    width: 100%;
+    background: #99ccff;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 20px;
+    position: relative;
+    display: none;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #004080;
+    transition: width 0.5s ease;
+  }
+  .stars {
+    display: inline-block;
+    margin-left: 10px;
+    color: gold;
+    font-size: 1.5em;
+    vertical-align: middle;
+    transition: transform 0.3s ease;
+  }
+  .star-pop {
+    transform: scale(1.5);
+  }
+  #timer {
+    font-weight: bold;
+    margin-top: 10px;
+    font-size: 1.2em;
+    color: #004080;
+  }
+  #difficultySelect { 
+    display: flex; 
+    justify-content: center; 
+    margin-top: 20px; 
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+</style>
+</head>
+<body>
+
+<h1>Manus — Aprende el Abecedario LSM</h1>
+
+<div style="text-align:center;">
+  <button onclick="setMode('practice')">Modo Práctica</button>
+  <button onclick="setMode('quiz')">Modo Quiz</button>
+</div>
+
+<div id="difficultySelect" style="display:none;">
+  <button onclick="startQuiz(30)">Fácil (30s)</button>
+  <button onclick="startQuiz(15)">Medio (15s)</button>
+  <button onclick="startQuiz(10)">Difícil (10s)</button>
+</div>
+
+<div id="content" style="margin-top:20px;"></div>
+<div class="feedback" id="feedback"></div>
+<div id="timer"></div>
+<div class="progress-container" id="progressContainer">
+  <div class="progress-bar" id="progressBar"></div>
+  <span class="stars" id="stars"></span>
+</div>
+
+<script>
+// Letras e imágenes
+const letters = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","Ñ","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+const images = {
+  A: "images/IMG-20251016-WA0037.jpg", B: "images/IMG-20251016-WA0039.jpg", C: "images/IMG-20251016-WA0041.jpg",
+  D: "images/IMG-20251016-WA0043.jpg", E: "images/IMG-20251016-WA0045.jpg", F: "images/IMG-20251016-WA0047.jpg",
+  G: "images/IMG-20251016-WA0049.jpg", H: "images/IMG-20251016-WA0051.jpg", I: "images/IMG-20251016-WA0053.jpg",
+  J: "images/IMG-20251016-WA0055.jpg", K: "images/IMG-20251016-WA0057.jpg", L: "images/IMG-20251016-WA0059.jpg",
+  M: "images/IMG-20251016-WA0061.jpg", N: "images/IMG-20251016-WA0063.jpg", Ñ: "images/IMG-20251016-WA0065.jpg",
+  O: "images/IMG-20251016-WA0067.jpg", P: "images/IMG-20251016-WA0069.jpg", Q: "images/IMG-20251016-WA0071.jpg",
+  R: "images/IMG-20251016-WA0073.jpg", S: "images/IMG-20251016-WA0075.jpg", T: "images/IMG-20251016-WA0077.jpg",
+  U: "images/IMG-20251016-WA0079.jpg", V: "images/IMG-20251016-WA0081.jpg", W: "images/IMG-20251016-WA0083.jpg",
+  X: "images/IMG-20251016-WA0085.jpg", Y: "images/IMG-20251016-WA0087.jpg", Z: "images/IMG-20251016-WA0089.jpg"
+};
+
+// Variables globales
+let mode='practice', score=0, currentIndex=0, quizOrder=[], totalCorrect=0;
+let timerDuration=15, timerInterval, timeLeft;
+let quizActive=false;
+
+// Mezclar array
+function shuffle(array){
+  const a=array.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+// Cambiar modo
+function setMode(newMode){
+  mode=newMode;
+  quizActive=false;
+  currentIndex=0; score=0; totalCorrect=0;
+  document.getElementById('feedback').textContent='';
+  document.getElementById('content').innerHTML='';
+  document.getElementById('timer').textContent='';
+  
+  if(mode==='practice'){
+    document.getElementById('difficultySelect').style.display='none';
+    document.getElementById('progressContainer').style.display='none';
+    render();
+  } else if(mode==='quiz'){
+    document.getElementById('difficultySelect').style.display='flex';
+    document.getElementById('progressContainer').style.display='none';
+    clearInterval(timerInterval);
+  }
+}
+
+// Iniciar Quiz después de elegir dificultad
+function startQuiz(seconds){
+  timerDuration = seconds;
+  score = 0; totalCorrect = 0; currentIndex = 0;
+  quizOrder = shuffle(letters);
+  quizActive = true;
+  timeLeft = timerDuration;
+
+  document.getElementById('difficultySelect').style.display='none';
+  document.getElementById('progressContainer').style.display='block';
+  document.getElementById('progressBar').style.width='0%';
+  document.getElementById('stars').textContent='';
+  
+  startTimer();
+  render();
+}
+
+// Timer global para todo el quiz
+function startTimer(){
+  const timerEl = document.getElementById('timer');
+  timerEl.textContent = `Tiempo: ${timeLeft}s`;
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    timerEl.textContent = `Tiempo: ${timeLeft}s`;
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      endQuiz();
+    }
+  },1000);
+}
+
+// Crear opciones de quiz
+function makeOptions(correct){
+  const options = shuffle(letters.filter(l=>l!==correct)).slice(0,3);
+  options.push(correct);
+  return shuffle(options);
+}
+
+// Manejar respuesta
+function handleAnswer(selected){
+  if(!quizActive) return;
+  const correct = quizOrder[currentIndex];
+  if(selected===correct){ score++; totalCorrect++; }
+  currentIndex++;
+  updateProgress();
+  if(currentIndex>=quizOrder.length){ endQuiz(); }
+  else{ render(); } // No reiniciamos timer
+}
+
+// Terminar quiz
+function endQuiz(){
+  quizActive=false;
+  clearInterval(timerInterval);
+  const content=document.getElementById('content');
+  content.innerHTML=`<h2>¡Quiz terminado!</h2><p>Tu puntuación: ${score} de ${quizOrder.length}</p>`;
+  document.getElementById('feedback').textContent='';
+  document.getElementById('timer').textContent='';
+  document.getElementById('progressContainer').style.display='none';
+}
+
+// Actualizar barra de progreso y estrellas
+function updateProgress(){
+  const progressBar = document.getElementById('progressBar');
+  const starsEl = document.getElementById('stars');
+  const percent = (totalCorrect%5)*20;
+  progressBar.style.width = percent+'%';
+  const starsCount = Math.floor(totalCorrect/5);
+  starsEl.textContent = '★'.repeat(starsCount);
+}
+
+// Renderizar contenido
+function render(){
+  const content = document.getElementById('content');
+  content.innerHTML='';
+  if(mode==='practice'){
+    const grid=document.createElement('div');
+    letters.forEach(l=>{
+      const box=document.createElement('div');
+      box.className='letter-box';
+      const img=document.createElement('img'); img.src=images[l]||''; img.alt=`Seña ${l}`;
+      box.appendChild(img);
+      const caption=document.createElement('div'); caption.textContent=l; caption.style.marginTop='5px'; caption.style.fontWeight='bold';
+      box.appendChild(caption);
+      grid.appendChild(box);
+    });
+    content.appendChild(grid);
+  } else if(mode==='quiz' && quizActive){
+    const currentLetter = quizOrder[currentIndex];
+    const imgDiv = document.createElement('div');
+    const img = document.createElement('img'); img.src = images[currentLetter] || ''; img.alt = `Seña ${currentLetter}`;
+    imgDiv.appendChild(img); content.appendChild(imgDiv);
+
+    const optionsDiv = document.createElement('div'); optionsDiv.className='quiz-options';
+    makeOptions(currentLetter).forEach(opt=>{
+      const btn = document.createElement('button'); btn.textContent = opt; btn.onclick = ()=>handleAnswer(opt);
+      optionsDiv.appendChild(btn);
+    });
+    content.appendChild(optionsDiv);
+  }
+}
+
+// Inicializar
+render();
+</script>
+</body>
+</html>
